@@ -1,144 +1,192 @@
-package com.example.ddm_front
+package com.example.d_dmaster
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.ddm_front.ui.theme.DDM_FrontTheme
+import com.example.d_dmaster.ui.theme.DDMasterTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            DDM_FrontTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    // Criando a tela de criação de personagem
-                    CharacterCreationScreen(modifier = Modifier.padding(innerPadding))
-                }
+            DDMasterTheme {
+                TelaCriacaoPersonagem()
             }
         }
     }
 }
 
 @Composable
-fun CharacterCreationScreen(modifier: Modifier = Modifier) {
-    // Estados para armazenar o nome, classe e atributos do personagem
-    var characterName by remember { mutableStateOf("") }
-    var characterClass by remember { mutableStateOf("Guerreiro") } // Classe inicial
-    var strength by remember { mutableStateOf(10) }
-    var dexterity by remember { mutableStateOf(10) }
-    var constitution by remember { mutableStateOf(10) }
-    var intelligence by remember { mutableStateOf(10) }
-    var wisdom by remember { mutableStateOf(10) }
-    var charisma by remember { mutableStateOf(10) }
+fun TelaCriacaoPersonagem() {
+    var nomePersonagem by remember { mutableStateOf("") }
+    val personagem = remember { Personagem() }
+    var classeSelecionada by remember { mutableStateOf<Classe?>(null) }
+    var racaSelecionada by remember { mutableStateOf<Raca?>(null) }
+    var pontosRestantes by remember { mutableStateOf(27) }
+    var personagemCriado by remember { mutableStateOf(false) }
 
-    // Layout da tela
+    val scrollState = rememberScrollState()
+
+    val classes = listOf(
+        Classe("Arqueiro", mapOf("Destreza" to 3)),
+        Classe("Mago", mapOf("Inteligência" to 3)),
+        Classe("Guerreiro", mapOf("Força" to 3))
+    )
+
+    val racas = listOf(
+        Raca("Humano", bonusAtributos = mapOf("Forca" to 1, "Destreza" to 1, "Constituicao" to 1, "Inteligencia" to 1, "Sabedoria" to 1, "Carisma" to 1)),
+        Raca("Elfo", bonusAtributos = mapOf("Destreza" to 2, "Inteligencia" to 1)),
+        Raca("Anão", bonusAtributos = mapOf("Constituicao" to 2, "Forca" to 2))
+    )
+
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        modifier = Modifier
+            .padding(16.dp)
+            .verticalScroll(scrollState)
     ) {
-        Text(text = "Criação de Personagem", style = MaterialTheme.typography.titleLarge)
+        Text(text = "Criação de Personagem", style = MaterialTheme.typography.headlineSmall)
 
-        // Campo de texto para o nome do personagem
-        Text(text = "Nome do Personagem:")
-        BasicTextField(
-            value = characterName,
-            onValueChange = { characterName = it },
-            modifier = Modifier.fillMaxWidth()
+        Spacer(modifier = Modifier.height(16.dp))
+
+        TextField(
+            value = nomePersonagem,
+            onValueChange = { nomePersonagem = it },
+            label = { Text(text = "Nome do Personagem") }
         )
 
-        // Escolha da classe do personagem
-        Text(text = "Classe:")
-        ClassSelectionDropdown(selectedClass = characterClass, onClassSelected = { characterClass = it })
+        Spacer(modifier = Modifier.height(16.dp))
 
-        // Atributos do personagem
-        Text(text = "Atributos:")
-        AttributeInput(label = "Força", value = strength, onValueChange = { strength = it })
-        AttributeInput(label = "Destreza", value = dexterity, onValueChange = { dexterity = it })
-        AttributeInput(label = "Constituição", value = constitution, onValueChange = { constitution = it })
-        AttributeInput(label = "Inteligência", value = intelligence, onValueChange = { intelligence = it })
-        AttributeInput(label = "Sabedoria", value = wisdom, onValueChange = { wisdom = it })
-        AttributeInput(label = "Carisma", value = charisma, onValueChange = { charisma = it })
+        Text(text = "Selecione a Classe:")
+        classes.forEach { classe ->
+            Row {
+                RadioButton(
+                    selected = classe == classeSelecionada,
+                    onClick = { classeSelecionada = classe }
+                )
+                Text(text = classe.nome)
+            }
+        }
 
-        // Botão para criar o personagem
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(text = "Selecione a Raça:")
+        racas.forEach { raca ->
+            Row {
+                RadioButton(
+                    selected = raca == racaSelecionada,
+                    onClick = { racaSelecionada = raca }
+                )
+                Text(text = raca.nome)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(text = "Pontos restantes: $pontosRestantes")
+
+        // Função para atualizar atributos
+        fun atualizarAtributo(
+            atributo: (Int) -> Unit,
+            valorAtual: Int,
+            operacao: (Int) -> Int
+        ) {
+            val novoValor = operacao(valorAtual)
+            val custoAtual = calcularCustoPontos(valorAtual)
+            val custoNovo = calcularCustoPontos(novoValor)
+            val custoTotal = custoNovo - custoAtual
+
+            if (pontosRestantes >= custoTotal && novoValor in 8..15) {
+                atributo(novoValor)
+                pontosRestantes -= custoTotal
+            }
+        }
+
+        AtributoField("Força", personagem.forca, pontosRestantes,
+            onIncrement = { atualizarAtributo({ personagem.forca = it }, personagem.forca) { it + 1 } },
+            onDecrement = { atualizarAtributo({ personagem.forca = it }, personagem.forca) { it - 1 } }
+        )
+
+        AtributoField("Destreza", personagem.destreza, pontosRestantes,
+            onIncrement = { atualizarAtributo({ personagem.destreza = it }, personagem.destreza) { it + 1 } },
+            onDecrement = { atualizarAtributo({ personagem.destreza = it }, personagem.destreza) { it - 1 } }
+        )
+
+        AtributoField("Constituição", personagem.constituicao, pontosRestantes,
+            onIncrement = { atualizarAtributo({ personagem.constituicao = it }, personagem.constituicao) { it + 1 } },
+            onDecrement = { atualizarAtributo({ personagem.constituicao = it }, personagem.constituicao) { it - 1 } }
+        )
+
+        AtributoField("Inteligência", personagem.inteligencia, pontosRestantes,
+            onIncrement = { atualizarAtributo({ personagem.inteligencia = it }, personagem.inteligencia) { it + 1 } },
+            onDecrement = { atualizarAtributo({ personagem.inteligencia = it }, personagem.inteligencia) { it - 1 } }
+        )
+
+        AtributoField("Sabedoria", personagem.sabedoria, pontosRestantes,
+            onIncrement = { atualizarAtributo({ personagem.sabedoria = it }, personagem.sabedoria) { it + 1 } },
+            onDecrement = { atualizarAtributo({ personagem.sabedoria = it }, personagem.sabedoria) { it - 1 } }
+        )
+
+        AtributoField("Carisma", personagem.carisma, pontosRestantes,
+            onIncrement = { atualizarAtributo({ personagem.carisma = it }, personagem.carisma) { it + 1 } },
+            onDecrement = { atualizarAtributo({ personagem.carisma = it }, personagem.carisma) { it - 1 } }
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         Button(onClick = {
-            val characterDetails = """
-                Nome: $characterName
-                Classe: $characterClass
-                Atributos:
-                Força: $strength
-                Destreza: $dexterity
-                Constituição: $constitution
-                Inteligência: $intelligence
-                Sabedoria: $wisdom
-                Carisma: $charisma
-            """.trimIndent()
-            println("Personagem Criado: \n$characterDetails")
+            if (classeSelecionada != null && racaSelecionada != null && nomePersonagem.isNotEmpty()) {
+                personagem.nome = nomePersonagem
+                personagem.classe = classeSelecionada
+                personagem.raca = racaSelecionada
+                personagem.aplicarBonusClasse()
+                personagem.aplicarBonusRaca()
+                personagem.calcularPontosDeVida()
+                personagemCriado = true
+            }
         }) {
             Text("Criar Personagem")
         }
+
+        if (personagemCriado) {
+            Text(text = "Personagem ${personagem.nome} criado com sucesso!")
+        }
     }
 }
 
 @Composable
-fun ClassSelectionDropdown(selectedClass: String, onClassSelected: (String) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
-    val classes = listOf("Guerreiro", "Mago", "Clérigo", "Ladino")
-
-    // Box para o dropdown de seleção de classe
-    Box {
-        // Botão que abre o dropdown
-        Button(onClick = { expanded = !expanded }) {
-            Text(text = selectedClass)
-        }
-
-        // Dropdown menu
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            classes.forEach { classOption ->
-                DropdownMenuItem(
-                    text = { Text(text = classOption) },  // Atualização: passando a função `text`
-                    onClick = {
-                        onClassSelected(classOption)
-                        expanded = false
-                    }
-                )
+fun AtributoField(
+    nome: String,
+    valor: Int,
+    pontosRestantes: Int,
+    onIncrement: () -> Unit,
+    onDecrement: () -> Unit
+) {
+    Column {
+        Text(text = "$nome: $valor")
+        Row {
+            Button(onClick = onDecrement) {
+                Text("-")
+            }
+            Button(onClick = onIncrement) {
+                Text("+")
             }
         }
     }
 }
 
-@Composable
-fun AttributeInput(label: String, value: Int, onValueChange: (Int) -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(text = label) // Certificando que 'text' está sendo passado corretamente
-        BasicTextField(
-            value = value.toString(),
-            onValueChange = { newValue ->
-                onValueChange(newValue.toIntOrNull() ?: 0)
-            },
-            modifier = Modifier.width(50.dp)
-        )
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun CharacterCreationScreenPreview() {
-    DDM_FrontTheme {
-        CharacterCreationScreen()
+fun calcularCustoPontos(valor: Int): Int {
+    return if (valor <= 10) {
+        0
+    } else {
+        (valor - 10)
     }
 }
