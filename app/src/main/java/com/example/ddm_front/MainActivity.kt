@@ -45,6 +45,9 @@ class MainActivity : ComponentActivity() {
         var sabedoria by remember { mutableStateOf(8) }
         var carisma by remember { mutableStateOf(8) }
 
+        // Exibir bônus de atributos
+        var bonusTexto by remember { mutableStateOf("") }
+
         val context = LocalContext.current
 
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -92,7 +95,13 @@ class MainActivity : ComponentActivity() {
                         "Orc" -> Raca("Orc", null, mapOf("Forca" to 2))
                         else -> Raca("Humano", null, mapOf("Forca" to 1))
                     }
+                    // Exibir bônus
+                    bonusTexto = "Bônus: ${raca.getBonusString()}"
+
                 }
+
+                // Exibir bônus
+                Text(bonusTexto)
 
                 // Contadores de Atributos
                 AtributoComContador("Força", forca, { if (forca < 15) forca++ }, { if (forca > 8) forca-- })
@@ -104,6 +113,18 @@ class MainActivity : ComponentActivity() {
 
                 // Criar Personagem
                 Button(onClick = {
+                    // Validação do nome
+                    if (nome.isBlank()) {
+                        Toast.makeText(context, "Nome não pode estar vazio.", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+
+                    // Validação dos atributos
+                    if (forca < 8 || destreza < 8 || constituicao < 8 || inteligencia < 8 || sabedoria < 8 || carisma < 8) {
+                        Toast.makeText(context, "Atributos devem ser pelo menos 8.", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+
                     val personagem = Personagem().apply {
                         this.nome = nome
                         this.classe = classe
@@ -180,8 +201,7 @@ class MainActivity : ComponentActivity() {
                                 selectedClass = className
                                 onSelect(className)
                                 showClassOptions = false
-                            },
-                            modifier = Modifier.fillMaxWidth()
+                            }
                         ) {
                             Text(className)
                         }

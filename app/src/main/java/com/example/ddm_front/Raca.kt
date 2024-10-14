@@ -17,4 +17,9 @@ class Raca(
             }
         }
     }
+
+    // Método para retornar os bônus como uma string legível
+    fun getBonusString(): String {
+        return bonusAtributos.entries.joinToString(", ") { "${it.key}: ${it.value}" }
+    }
 }
