@@ -1,9 +1,5 @@
 package com.example.ddm_front
 
-import com.example.d_dmaster.Classe
-import com.example.d_dmaster.Raca
-import com.example.d_dmaster.Personagem
-
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
@@ -16,18 +12,31 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.example.d_dmaster.Classe
+import com.example.d_dmaster.Raca
+import com.example.d_dmaster.Personagem
+import com.example.d_dmaster.ValidadorDePersonagem
 
 class MainActivity : ComponentActivity() {
     // Lista de personagens criados
     private val personagensCriados = mutableStateListOf<String>()
 
+    // Total de pontos disponíveis para distribuição
+    private var totalPontos = 27
+
+    // Inicializando os atributos com 8 usando mutableIntStateOf
+    private var forca by mutableIntStateOf(8)
+    private var destreza by mutableIntStateOf(8)
+    private var constituicao by mutableIntStateOf(8)
+    private var inteligencia by mutableIntStateOf(8)
+    private var sabedoria by mutableIntStateOf(8)
+    private var carisma by mutableIntStateOf(8)
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            CriacaoPersonagemScreen { personagem ->
-                // Adiciona o personagem à lista quando criado
-                personagensCriados.add(personagem)
-            }
+            CriacaoPersonagemScreen(personagensCriados::add)
         }
     }
 
@@ -36,14 +45,6 @@ class MainActivity : ComponentActivity() {
         var nome by remember { mutableStateOf("") }
         var classe by remember { mutableStateOf(Classe("Guerreiro", mapOf("Forca" to 2))) }
         var raca by remember { mutableStateOf(Raca("Humano", null, mapOf("Forca" to 1))) }
-
-        // Inicializando os atributos com 8
-        var forca by remember { mutableStateOf(8) }
-        var destreza by remember { mutableStateOf(8) }
-        var constituicao by remember { mutableStateOf(8) }
-        var inteligencia by remember { mutableStateOf(8) }
-        var sabedoria by remember { mutableStateOf(8) }
-        var carisma by remember { mutableStateOf(8) }
 
         // Exibir bônus de atributos
         var bonusTexto by remember { mutableStateOf("") }
@@ -97,38 +98,51 @@ class MainActivity : ComponentActivity() {
                     }
                     // Exibir bônus
                     bonusTexto = "Bônus: ${raca.getBonusString()}"
-
                 }
 
                 // Exibir bônus
                 Text(bonusTexto)
 
                 // Contadores de Atributos
-                AtributoComContador("Força", forca, { if (forca < 15) forca++ }, { if (forca > 8) forca-- })
-                AtributoComContador("Destreza", destreza, { if (destreza < 15) destreza++ }, { if (destreza > 8) destreza-- })
-                AtributoComContador("Constituição", constituicao, { if (constituicao < 15) constituicao++ }, { if (constituicao > 8) constituicao-- })
-                AtributoComContador("Inteligência", inteligencia, { if (inteligencia < 15) inteligencia++ }, { if (inteligencia > 8) inteligencia-- })
-                AtributoComContador("Sabedoria", sabedoria, { if (sabedoria < 15) sabedoria++ }, { if (sabedoria > 8) sabedoria-- })
-                AtributoComContador("Carisma", carisma, { if (carisma < 15) carisma++ }, { if (carisma > 8) carisma-- })
+                AtributoComContador("Força", forca, { incrementarAtributo("forca") }, { decrementarAtributo("forca") })
+                AtributoComContador("Destreza", destreza, { incrementarAtributo("destreza") }, { decrementarAtributo("destreza") })
+                AtributoComContador("Constituição", constituicao, { incrementarAtributo("constituicao") }, { decrementarAtributo("constituicao") })
+                AtributoComContador("Inteligência", inteligencia, { incrementarAtributo("inteligencia") }, { decrementarAtributo("inteligencia") })
+                AtributoComContador("Sabedoria", sabedoria, { incrementarAtributo("sabedoria") }, { decrementarAtributo("sabedoria") })
+                AtributoComContador("Carisma", carisma, { incrementarAtributo("carisma") }, { decrementarAtributo("carisma") })
 
-                // Criar Personagem
+                // Exibir total de pontos restantes
+                Text("Pontos restantes: $totalPontos")
+
                 Button(onClick = {
+                    // Crie uma instância do ValidadorDePersonagem
+                    val validador = ValidadorDePersonagem()
+
                     // Validação do nome
-                    if (nome.isBlank()) {
+                    if (validador.validarNome(nome).not()) {
                         Toast.makeText(context, "Nome não pode estar vazio.", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
 
                     // Validação dos atributos
-                    if (forca < 8 || destreza < 8 || constituicao < 8 || inteligencia < 8 || sabedoria < 8 || carisma < 8) {
+                    if (validador.validarAtributos(forca, destreza, constituicao, inteligencia, sabedoria, carisma).not()) {
                         Toast.makeText(context, "Atributos devem ser pelo menos 8.", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
 
+                    // Criação do personagem
                     val personagem = Personagem().apply {
                         this.nome = nome
                         this.classe = classe
                         this.raca = raca
+
+                        // Atribuir os atributos do personagem com os valores atuais
+                        this.forca = forca // Atribuindo o valor da variável de estado a forca do personagem
+                        this.destreza = destreza // Atribuindo o valor da variável de estado a destreza do personagem
+                        this.constituicao = constituicao // Atribuindo o valor da variável de estado a constituicao do personagem
+                        this.inteligencia = inteligencia // Atribuindo o valor da variável de estado a inteligencia do personagem
+                        this.sabedoria = sabedoria // Atribuindo o valor da variável de estado a sabedoria do personagem
+                        this.carisma = carisma // Atribuindo o valor da variável de estado a carisma do personagem
 
                         // Aplica os bônus de raça e classe
                         aplicarBonusClasse()
@@ -163,26 +177,87 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // Função para incrementar o atributo e reduzir os pontos disponíveis
+    private fun incrementarAtributo(atributo: String) {
+        when (atributo) {
+            "forca" -> if (forca < 15) {
+                forca++
+                totalPontos--
+            }
+            "destreza" -> if (destreza < 15) {
+                destreza++
+                totalPontos--
+            }
+            "constituicao" -> if (constituicao < 15) {
+                constituicao++
+                totalPontos--
+            }
+            "inteligencia" -> if (inteligencia < 15) {
+                inteligencia++
+                totalPontos--
+            }
+            "sabedoria" -> if (sabedoria < 15) {
+                sabedoria++
+                totalPontos--
+            }
+            "carisma" -> if (carisma < 15) {
+                carisma++
+                totalPontos--
+            }
+        }
+    }
+
+    // Função para decrementar o atributo e aumentar os pontos disponíveis
+    private fun decrementarAtributo(atributo: String) {
+        when (atributo) {
+            "forca" -> if (forca > 8) {
+                forca--
+                totalPontos++
+            }
+            "destreza" -> if (destreza > 8) {
+                destreza--
+                totalPontos++
+            }
+            "constituicao" -> if (constituicao > 8) {
+                constituicao--
+                totalPontos++
+            }
+            "inteligencia" -> if (inteligencia > 8) {
+                inteligencia--
+                totalPontos++
+            }
+            "sabedoria" -> if (sabedoria > 8) {
+                sabedoria--
+                totalPontos++
+            }
+            "carisma" -> if (carisma > 8) {
+                carisma--
+                totalPontos++
+            }
+        }
+    }
+
+    // Componente para exibir atributo com contador
     @Composable
-    fun AtributoComContador(nome: String, valor: Int, incrementar: () -> Unit, decrementar: () -> Unit) {
+    fun AtributoComContador(nome: String, valor: Int, onIncrement: () -> Unit, onDecrement: () -> Unit) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(nome)
+            Text("$nome: $valor")
             Row {
-                Button(onClick = decrementar) {
+                Button(onClick = onDecrement) {
                     Text("-")
                 }
-                Text(valor.toString(), modifier = Modifier.padding(horizontal = 8.dp))
-                Button(onClick = incrementar) {
+                Button(onClick = onIncrement) {
                     Text("+")
                 }
             }
         }
     }
 
+    // Componente de seleção de classe
     @Composable
     fun ClassSelection(classes: List<String>, onSelect: (String) -> Unit) {
         var selectedClass by remember { mutableStateOf("Selecione uma opção") }
@@ -201,9 +276,10 @@ class MainActivity : ComponentActivity() {
                                 selectedClass = className
                                 onSelect(className)
                                 showClassOptions = false
-                            }
+                            },
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(className)
+                            Text(text = className)
                         }
                     }
                 }
