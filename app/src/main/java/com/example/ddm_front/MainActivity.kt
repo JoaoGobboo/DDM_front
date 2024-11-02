@@ -1,86 +1,83 @@
 package com.example.ddm_front
 
-import Atributos
+import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.lifecycle.lifecycleScope
-import com.example.ddm_front.components.PersonagemForm
-import com.example.ddm_front.Logica.*
-import com.example.ddm_front.Data.AtributosDAO
-import com.example.ddm_front.Data.PersonagemDAO
-import com.example.ddm_front.Data.AtributosDB
-import com.example.ddm_front.Data.RacaDAO
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import com.example.ddm_front.Logica.Atributos
+import com.example.ddm_front.Logica.Personagem
+import com.example.ddm_front.UI.ListaPersonagensActivity
+import com.example.ddm_front.UI.PersonagemForm
+import com.example.ddm_front.ui.theme.DDMFrontTheme
+import up.ddm.data.AtributosDB
 
 class MainActivity : ComponentActivity() {
-    private lateinit var atributosDAO: AtributosDAO
-    private lateinit var personagemDAO: PersonagemDAO
-    private lateinit var racaDAO: RacaDAO // Inicialização do RacaDAO
+    private lateinit var database: AtributosDB
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val db = AtributosDB.getDatabase(this)
-        atributosDAO = db.atributosDAO()
-        personagemDAO = db.personagemDAO()
-        racaDAO = db.racaDAO() // Inicialização do RacaDAO
+        database = AtributosDB.getDatabase(this) // Inicializa o banco de dados
 
         setContent {
-            MaterialTheme {
-                var personagem by remember { mutableStateOf<Personagem?>(null) }
+            MainScreen() // Chama a função MainScreen
+        }
+    }
 
-                // Definindo as classes disponíveis com bônus de atributos
-                val classes = listOf(
-                    Classe("Guerreiro", mapOf("forca" to 3)),
-                    Classe("Mago", mapOf("inteligencia" to 3)),
-                    Classe("Clérigo", mapOf("sabedoria" to 3)),
-                    Classe("Ladino", mapOf("destreza" to 3))
-                )
+    @Composable
+    private fun MainScreen() {
+        DDMFrontTheme {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.background
+            ) {
+                val coroutineScope = rememberCoroutineScope() // Cria um escopo de coroutine
 
-                // Inicializando as raças com bônus de atributos
-                val racas = listOf(
-                    Raca("Humano", 1, 0, 0, 0, 0, 1),
-                    Raca("Elfo", 0, 2, 0, 1, 0, 0)
-                    // Adicione outras raças conforme necessário
-                )
-
-                // Exibindo o formulário de criação do personagem
-                PersonagemForm(
-                    onPersonagemCadastrado = { novoPersonagem ->
-                        // Calcular pontos de vida depois de aplicar os bônus
-                        novoPersonagem.pontosDeVida = calcularPontosDeVida(novoPersonagem.atributos)
-
-                        // Salvar personagem no banco de dados
-                        savePersonagem(novoPersonagem)
-
-                        personagem = novoPersonagem
-                    },
-                    classes = classes,
-                    racas = racas
-                )
-
-                // Exibir informações do personagem criado
-                personagem?.let {
-                    Text(text = "Personagem criado: ${it.nome} com ${it.pontosDeVida} pontos de vida")
+                Column(modifier = Modifier.padding(16.dp)) {
+                    PersonagemForm(
+                        onSavePersonagem = { personagem, atributos ->
+                            coroutineScope.launch {
+                                salvarPersonagem(personagem, atributos) // Chama a função para salvar o personagem
+                            }
+                        },
+                        onListPersonagens = {
+                            startListaPersonagensActivity() // Chama a função para listar personagens
+                        }
+                    )
                 }
             }
         }
     }
 
-    private fun calcularPontosDeVida(atributos: Atributos): Int {
-        return 10 + ((atributos.constituicao - 10) / 2)
+    private fun startListaPersonagensActivity() {
+        val intent = Intent(this, ListaPersonagensActivity::class.java)
+        startActivity(intent) // Inicia a atividade de lista de personagens
     }
 
-    private fun savePersonagem(personagem: Personagem) {
-        lifecycleScope.launch {
-            try {
-                personagemDAO.insert(personagem)
-                // Sucesso na inserção, adicione um log ou feedback ao usuário aqui
-            } catch (e: Exception) {
-                // Lidar com erro na inserção
-                e.printStackTrace() // Exemplo de log de erro
+    private suspend fun salvarPersonagem(personagem: Personagem, atributos: Atributos) {
+        try {
+            withContext(Dispatchers.IO) {
+                val atributosId = database.atributosDAO().insert(atributos) // Insere atributos
+                personagem.atributosId = atributosId.toInt() // Armazena o ID dos atributos
+                database.personagemDAO().insert(personagem) // Insere personagem
+            }
+
+            withContext(Dispatchers.Main) {
+                Toast.makeText(this@MainActivity, "Personagem criado com sucesso!", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            withContext(Dispatchers.Main) {
+                Toast.makeText(this@MainActivity, "Erro ao salvar: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
     }

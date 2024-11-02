@@ -1,5 +1,8 @@
+package com.example.ddm_front.Logica
+
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import androidx.room.TypeConverters
 
 @Entity(tableName = "atributos")
 data class Atributos(
@@ -7,36 +10,62 @@ data class Atributos(
     var id: Int = 0,
 
     var pontos: Int = 27,
-    var forca: Int = 8,
-    var destreza: Int = 8,
-    var constituicao: Int = 8,
-    var inteligencia: Int = 8,
-    var sabedoria: Int = 8,
-    var carisma: Int = 8
+
+    @TypeConverters(MapTypeConverter::class)
+    var atributosValores: MutableMap<String, Int> = mutableMapOf()
 ) {
-    fun setAtributo(nome: String, atributo: Int) {
-        if (atributo < 8 || atributo > 15) {
+    // Função para calcular o custo de um atributo
+    private fun calcularCustoPontos(valorDesejado: Int, valorAtual: Int = 8): Int {
+        var custo = 0
+        for (i in valorAtual until valorDesejado) {
+            custo += if (i >= 13) 2 else 1
+        }
+        return custo
+    }
+
+    fun setAtributo(nome: String, valor: Int) {
+        // Verifica se o valor está dentro dos limites permitidos
+        if (valor < 8 || valor > 15) {
             throw IllegalArgumentException("Valor deve estar entre 8 e 15")
-        } else if (atributo > pontos && atributo != 8) {
-            throw IllegalArgumentException("Pontos insuficientes")
-        } else if (atributo != 8) {
-            // Lógica de custo: a partir de 13, o custo é 2
-            val custo = if (atributo >= 13) 2 else 1
-            pontos -= custo
         }
 
-        when (nome) {
-            "forca" -> forca = atributo
-            "destreza" -> destreza = atributo
-            "constituição" -> constituicao = atributo
-            "inteligência" -> inteligencia = atributo
-            "sabedoria" -> sabedoria = atributo
-            "carisma" -> carisma = atributo
-            else -> throw IllegalArgumentException("Atributo inválido")
+        // Obtém o valor atual do atributo (ou 8 se não existir)
+        val valorAtual = atributosValores.getOrDefault(nome, 8)
+
+        // Calcula o custo da alteração
+        val custoPontos = if (valor > valorAtual) {
+            calcularCustoPontos(valor, valorAtual)
+        } else {
+            -calcularCustoPontos(valorAtual, valor)
         }
+
+        // Verifica se há pontos suficientes
+        if (pontos - custoPontos < 0) {
+            throw IllegalArgumentException("Pontos insuficientes para esta alteração")
+        }
+
+        // Aplica a alteração
+        pontos -= custoPontos
+        atributosValores[nome] = valor
+    }
+
+    fun getAtributo(nome: String): Int {
+        return atributosValores.getOrDefault(nome, 8)
     }
 
     fun getPontosDisponiveis(): Int {
         return pontos
+    }
+
+    fun resetAtributo(nome: String) {
+        val valorAtual = atributosValores.getOrDefault(nome, 8)
+        if (valorAtual > 8) {
+            pontos += calcularCustoPontos(valorAtual, 8)
+            atributosValores.remove(nome)
+        }
+    }
+
+    fun validarAtributos(): Boolean {
+        return atributosValores.all { (_, valor) -> valor in 8..15 }
     }
 }
