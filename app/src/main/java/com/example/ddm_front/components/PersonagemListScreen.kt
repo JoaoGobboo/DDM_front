@@ -22,56 +22,79 @@ import com.example.ddm_front.Logica.Personagem
 fun PersonagemListScreen(
     personagens: List<Pair<Personagem, Atributos>>,
     onAddPersonagem: () -> Unit,
-    onPersonagemClick: (Personagem) -> Unit,
-    onPersonagemDelete: (Personagem) -> Unit,
-    modifier: Modifier = Modifier
+    onPersonagemClick: (Pair<Personagem, Atributos>) -> Unit,
+    onPersonagemDelete: (Pair<Personagem, Atributos>) -> Unit
 ) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Meus Personagens") },
-                actions = {
-                    IconButton(onClick = onAddPersonagem) {
-                        Icon(Icons.Filled.Add, "Adicionar Personagem")
-                    }
-                }
-            )
+    Column {
+        Button(onClick = onAddPersonagem) {
+            Text("Adicionar Personagem")
         }
-    ) { paddingValues ->
-        if (personagens.isEmpty()) {
-            EmptyState(
-                onAddClick = onAddPersonagem,
-                modifier = Modifier.padding(paddingValues)
-            )
-        } else {
-            LazyColumn(
-                modifier = modifier
-                    .padding(paddingValues)
-                    .fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(16.dp)
-            ) {
-                items(personagens) { (personagem, atributos) ->
-                    PersonagemCard(
-                        personagem = personagem,
-                        atributos = atributos,
-                        onClick = { onPersonagemClick(personagem) },
-                        onDelete = { onPersonagemDelete(personagem) } // Adicionando a lógica de exclusão
-                    )
-                }
+
+        LazyColumn {
+            items(personagens) { (personagem, atributos) -> // Desestruturando o Pair
+                PersonagemCard(
+                    personagem = personagem,
+                    atributos = atributos,
+                    onClick = { onPersonagemClick(personagem to atributos) }, // Passando o Pair
+                    onDelete = { onPersonagemDelete(personagem to atributos) } // Passando o Pair
+                )
             }
         }
     }
 }
 
 
-@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EmptyState(
+    onAddClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = "Nenhum personagem criado",
+            style = MaterialTheme.typography.titleMedium
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Button(onClick = onAddClick) {
+            Icon(
+                Icons.Filled.Add,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Criar Personagem")
+        }
+    }
+}
+
+@Composable
+fun AtributosGrid(atributos: Atributos) {
+    Column {
+        // Exibe todos os atributos e seus valores
+        atributos.atributosValores.forEach { (nome, valor) ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(text = nome, style = MaterialTheme.typography.bodyMedium)
+                Text(text = valor.toString(), style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+        // Exibe os pontos disponíveis
+        Text("Pontos Disponíveis: ${atributos.getPontosDisponiveis()}", style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
 @Composable
 private fun PersonagemCard(
     personagem: Personagem,
     atributos: Atributos,
     onClick: () -> Unit,
-    onDelete: () -> Unit // Adicionando o parâmetro onDelete
+    onDelete: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -98,12 +121,19 @@ private fun PersonagemCard(
                     Icon(
                         if (expanded) Icons.Default.KeyboardArrowUp
                         else Icons.Default.KeyboardArrowDown,
-                        contentDescription = "Expandir"
+                        contentDescription = if (expanded) "Colapsar" else "Expandir"
                     )
                 }
             }
 
             if (expanded) {
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Exibindo a Raça, Classe e Pontos de Vida
+                Text("Raça: ${personagem.racaId}", style = MaterialTheme.typography.bodyMedium)
+                Text("Classe: ${personagem.classeId}", style = MaterialTheme.typography.bodyMedium)
+                Text("Pontos de Vida: ${personagem.pontosDeVida}", style = MaterialTheme.typography.bodyMedium)
+
                 Spacer(modifier = Modifier.height(8.dp))
                 AtributosGrid(atributos)
 
@@ -127,97 +157,3 @@ private fun PersonagemCard(
     }
 }
 
-@Composable
-private fun AtributosGrid(atributos: Atributos) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        val atributosMap = listOf(
-            "Força" to atributos.getAtributo("Força"),
-            "Destreza" to atributos.getAtributo("Destreza"),
-            "Constituição" to atributos.getAtributo("Constituição"),
-            "Inteligência" to atributos.getAtributo("Inteligência"),
-            "Sabedoria" to atributos.getAtributo("Sabedoria"),
-            "Carisma" to atributos.getAtributo("Carisma")
-        )
-
-        for (i in atributosMap.indices step 2) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                AtributoItem(
-                    nome = atributosMap[i].first,
-                    valor = atributosMap[i].second,
-                    modifier = Modifier.weight(1f)
-                )
-                if (i + 1 < atributosMap.size) {
-                    AtributoItem(
-                        nome = atributosMap[i + 1].first,
-                        valor = atributosMap[i + 1].second,
-                        modifier = Modifier.weight(1f)
-                    )
-                } else {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun AtributoItem(
-    nome: String,
-    valor: Int,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier,
-        color = MaterialTheme.colorScheme.primaryContainer,
-        shape = MaterialTheme.shapes.small
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(8.dp)
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = nome,
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Text(
-                text = valor.toString(),
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold
-            )
-        }
-    }
-}
-
-@Composable
-private fun EmptyState(
-    onAddClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = "Nenhum personagem criado",
-            style = MaterialTheme.typography.titleMedium
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Button(onClick = onAddClick) {
-            Icon(
-                Icons.Default.Add,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Criar Personagem")
-        }
-    }
-}

@@ -15,20 +15,20 @@ import kotlinx.coroutines.withContext
 
 class ListaPersonagensActivity : ComponentActivity() {
     private lateinit var database: AtributosDB
+    private var personagens by mutableStateOf(listOf<Pair<Personagem, Atributos>>()) // Propriedade da classe
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         database = AtributosDB.getDatabase(this)
 
         setContent {
-            var personagens by remember { mutableStateOf(listOf<Pair<Personagem, Atributos>>()) }
             var isLoading by remember { mutableStateOf(true) } // Estado de carregamento
             var errorMessage by remember { mutableStateOf<String?>(null) } // Mensagem de erro
 
             // Busca os personagens quando a Activity é criada
             LaunchedEffect(Unit) {
                 try {
-                    personagens = obterPersonagens()
+                    personagens = obterPersonagens() // Atualiza diretamente a variável da classe
                 } catch (e: Exception) {
                     errorMessage = "Erro ao carregar personagens: ${e.message}"
                 } finally {
@@ -52,7 +52,7 @@ class ListaPersonagensActivity : ComponentActivity() {
                     },
                     onPersonagemDelete = { personagem ->
                         // Função para deletar o personagem
-                        deletePersonagem(personagem)
+                        deletePersonagem(personagem) // 'personagem' é do tipo Pair<Personagem, Atributos>
                     }
                 )
             }
@@ -71,19 +71,27 @@ class ListaPersonagensActivity : ComponentActivity() {
             val atributos = withContext(Dispatchers.IO) {
                 database.atributosDAO().getById(personagem.atributosId.toLong())
             }
-            personagensList.add(personagem to atributos) // Adiciona à lista
+            if (atributos != null) { // Verifique se os atributos não são nulos
+                personagensList.add(personagem to atributos) // Adiciona à lista
+            }
         }
 
         return personagensList
     }
 
-    private fun deletePersonagem(personagem: Personagem) {
+    private fun deletePersonagem(personagem: Pair<Personagem, Atributos>) {
         lifecycleScope.launch(Dispatchers.IO) {
             // Lógica para deletar o personagem do banco de dados
-            database.personagemDAO().delete(personagem) // Certifique-se de que este método está definido no DAO
+            database.personagemDAO().delete(personagem.first) // Delete o personagem
+
             // Após a exclusão, recarregar a lista de personagens
             val updatedPersonagens = obterPersonagens()
-            // Atualizar a lista de personagens no Composable (pode ser necessário usar um estado)
+
+            // Atualiza a lista de personagens no Composable
+            withContext(Dispatchers.Main) {
+                personagens = updatedPersonagens // Atualize a variável 'personagens' para refletir as alterações
+            }
         }
     }
 }
+

@@ -1,19 +1,74 @@
 package com.example.ddm_front.UI
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.ddm_front.Logica.Atributos
+import com.example.ddm_front.Logica.Classe
 import com.example.ddm_front.Logica.Personagem
+import com.example.ddm_front.Logica.Raca
+
+
+@Composable
+fun AtributoField(
+    label: String,
+    value: Int,
+    onIncrement: () -> Unit,
+    onDecrement: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.weight(1f)
+        )
+
+        Button(
+            onClick = onDecrement,
+            enabled = value > 8,
+            modifier = Modifier.padding(horizontal = 8.dp)
+        ) {
+            Text("-")
+        }
+
+        Text(
+            text = value.toString(),
+            modifier = Modifier.padding(horizontal = 8.dp)
+        )
+
+        Button(
+            onClick = onIncrement,
+            enabled = value < 15,
+            modifier = Modifier.padding(horizontal = 8.dp)
+        ) {
+            Text("+")
+        }
+    }
+}
 
 @Composable
 fun PersonagemForm(
@@ -24,16 +79,28 @@ fun PersonagemForm(
     var nome by remember { mutableStateOf("") }
     var atributos by remember { mutableStateOf(Atributos()) }
 
-    // Estados para cada atributo
-    var forca by remember { mutableStateOf(8) }
-    var destreza by remember { mutableStateOf(8) }
-    var constituicao by remember { mutableStateOf(8) }
-    var inteligencia by remember { mutableStateOf(8) }
-    var sabedoria by remember { mutableStateOf(8) }
-    var carisma by remember { mutableStateOf(8) }
+    // Estado para Classe e Raça
+    var classeSelecionada by remember { mutableStateOf<Classe?>(null) }
+    var racaSelecionada by remember { mutableStateOf<Raca?>(null) }
 
-    // Estado para mensagens de erro
+    // Estado para mensagem de erro
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Lista de Classes
+    val classes = listOf(
+        Classe(nome = "Guerreiro", bonusAtributos = mapOf("Força" to 2)),
+        Classe(nome = "Mago", bonusAtributos = mapOf("Inteligência" to 2)),
+        Classe(nome = "Ladino", bonusAtributos = mapOf("Destreza" to 2)),
+        Classe(nome = "Clérigo", bonusAtributos = mapOf("Sabedoria" to 2))
+    )
+
+    // Lista de Raças
+    val racas = listOf(
+        Raca(nome = "Humano", bonusAtributos = mapOf("Força" to 1, "Destreza" to 1)),
+        Raca(nome = "Elfo", bonusAtributos = mapOf("Destreza" to 2)),
+        Raca(nome = "Anão", bonusAtributos = mapOf("Constituição" to 2)),
+        Raca(nome = "Meio-Elfo", bonusAtributos = mapOf("Carisma" to 1, "Destreza" to 1))
+    )
 
     Column(
         modifier = modifier
@@ -42,14 +109,11 @@ fun PersonagemForm(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Título
         Text(
             text = "Criar Personagem",
-            style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.padding(bottom = 16.dp)
+            style = MaterialTheme.typography.headlineMedium
         )
 
-        // Campo Nome
         OutlinedTextField(
             value = nome,
             onValueChange = { nome = it },
@@ -58,13 +122,7 @@ fun PersonagemForm(
             singleLine = true
         )
 
-        // Pontos Disponíveis
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer
-            )
-        ) {
+        Card(modifier = Modifier.fillMaxWidth()) {
             Text(
                 text = "Pontos Disponíveis: ${atributos.getPontosDisponiveis()}",
                 modifier = Modifier.padding(16.dp),
@@ -73,332 +131,113 @@ fun PersonagemForm(
             )
         }
 
+        // Seleção de Classe
+        Text("Selecione a Classe:", style = MaterialTheme.typography.titleMedium)
+        classes.forEach { classe ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(
+                    selected = (classeSelecionada?.nome == classe.nome),
+                    onClick = {
+                        classeSelecionada = classe
+                        // Aplicar bônus da classe
+                        try {
+                            classe.aplicarBonus(atributos)
+                        } catch (e: IllegalArgumentException) {
+                            errorMessage = e.message
+                        }
+                    }
+                )
+                Text(classe.nome, modifier = Modifier.padding(start = 8.dp))
+            }
+        }
+
+        // Seleção de Raça
+        Text("Selecione a Raça:", style = MaterialTheme.typography.titleMedium)
+        racas.forEach { raca ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(
+                    selected = (racaSelecionada?.nome == raca.nome),
+                    onClick = {
+                        racaSelecionada = raca
+                        // Aplicar bônus da raça
+                        try {
+                            raca.aplicarBonus(atributos)
+                        } catch (e: IllegalArgumentException) {
+                            errorMessage = e.message
+                        }
+                    }
+                )
+                Text(raca.nome, modifier = Modifier.padding(start = 8.dp))
+            }
+        }
+
         // Campos de Atributos
-        AtributoField(
-            label = "Força",
-            value = forca,
-            onIncrement = {
-                try {
-                    val novosAtributos = Atributos().apply {
-                        setAtributo("Força", forca + 1)
-                        setAtributo("Destreza", destreza)
-                        setAtributo("Constituição", constituicao)
-                        setAtributo("Inteligência", inteligencia)
-                        setAtributo("Sabedoria", sabedoria)
-                        setAtributo("Carisma", carisma)
-                    }
-                    atributos = novosAtributos
-                    forca++
-                    errorMessage = null
-                } catch (e: Exception) {
-                    errorMessage = e.message
-                }
-            },
-            onDecrement = {
-                if (forca > 8) {
+        listOf(
+            "Força", "Destreza", "Constituição",
+            "Inteligência", "Sabedoria", "Carisma"
+        ).forEach { atributoNome ->
+            AtributoField(
+                label = atributoNome,
+                value = atributos.getAtributo(atributoNome),
+                onIncrement = {
                     try {
-                        val novosAtributos = Atributos().apply {
-                            setAtributo("Força", forca - 1)
-                            setAtributo("Destreza", destreza)
-                            setAtributo("Constituição", constituicao)
-                            setAtributo("Inteligência", inteligencia)
-                            setAtributo("Sabedoria", sabedoria)
-                            setAtributo("Carisma", carisma)
-                        }
-                        atributos = novosAtributos
-                        forca--
-                        errorMessage = null
-                    } catch (e: Exception) {
+                        atributos.setAtributo(atributoNome, atributos.getAtributo(atributoNome) + 1)
+                    } catch (e: IllegalArgumentException) {
+                        errorMessage = e.message
+                    }
+                },
+                onDecrement = {
+                    try {
+                        atributos.setAtributo(atributoNome, atributos.getAtributo(atributoNome) - 1)
+                    } catch (e: IllegalArgumentException) {
                         errorMessage = e.message
                     }
                 }
-            }
-        )
-
-        AtributoField(
-            label = "Destreza",
-            value = destreza,
-            onIncrement = {
-                try {
-                    val novosAtributos = Atributos().apply {
-                        setAtributo("Força", forca)
-                        setAtributo("Destreza", destreza + 1)
-                        setAtributo("Constituição", constituicao)
-                        setAtributo("Inteligência", inteligencia)
-                        setAtributo("Sabedoria", sabedoria)
-                        setAtributo("Carisma", carisma)
-                    }
-                    atributos = novosAtributos
-                    destreza++
-                    errorMessage = null
-                } catch (e: Exception) {
-                    errorMessage = e.message
-                }
-            },
-            onDecrement = {
-                if (destreza > 8) {
-                    try {
-                        val novosAtributos = Atributos().apply {
-                            setAtributo("Força", forca)
-                            setAtributo("Destreza", destreza - 1)
-                            setAtributo("Constituição", constituicao)
-                            setAtributo("Inteligência", inteligencia)
-                            setAtributo("Sabedoria", sabedoria)
-                            setAtributo("Carisma", carisma)
-                        }
-                        atributos = novosAtributos
-                        destreza--
-                        errorMessage = null
-                    } catch (e: Exception) {
-                        errorMessage = e.message
-                    }
-                }
-            }
-        )
-
-        AtributoField(
-            label = "Constituição",
-            value = constituicao,
-            onIncrement = {
-                try {
-                    val novosAtributos = Atributos().apply {
-                        setAtributo("Força", forca)
-                        setAtributo("Destreza", destreza)
-                        setAtributo("Constituição", constituicao + 1)
-                        setAtributo("Inteligência", inteligencia)
-                        setAtributo("Sabedoria", sabedoria)
-                        setAtributo("Carisma", carisma)
-                    }
-                    atributos = novosAtributos
-                    constituicao++
-                    errorMessage = null
-                } catch (e: Exception) {
-                    errorMessage = e.message
-                }
-            },
-            onDecrement = {
-                if (constituicao > 8) {
-                    try {
-                        val novosAtributos = Atributos().apply {
-                            setAtributo("Força", forca)
-                            setAtributo("Destreza", destreza)
-                            setAtributo("Constituição", constituicao - 1)
-                            setAtributo("Inteligência", inteligencia)
-                            setAtributo("Sabedoria", sabedoria)
-                            setAtributo("Carisma", carisma)
-                        }
-                        atributos = novosAtributos
-                        constituicao--
-                        errorMessage = null
-                    } catch (e: Exception) {
-                        errorMessage = e.message
-                    }
-                }
-            }
-        )
-
-        AtributoField(
-            label = "Inteligência",
-            value = inteligencia,
-            onIncrement = {
-                try {
-                    val novosAtributos = Atributos().apply {
-                        setAtributo("Força", forca)
-                        setAtributo("Destreza", destreza)
-                        setAtributo("Constituição", constituicao)
-                        setAtributo("Inteligência", inteligencia + 1)
-                        setAtributo("Sabedoria", sabedoria)
-                        setAtributo("Carisma", carisma)
-                    }
-                    atributos = novosAtributos
-                    inteligencia++
-                    errorMessage = null
-                } catch (e: Exception) {
-                    errorMessage = e.message
-                }
-            },
-            onDecrement = {
-                if (inteligencia > 8) {
-                    try {
-                        val novosAtributos = Atributos().apply {
-                            setAtributo("Força", forca)
-                            setAtributo("Destreza", destreza)
-                            setAtributo("Constituição", constituicao)
-                            setAtributo("Inteligência", inteligencia - 1)
-                            setAtributo("Sabedoria", sabedoria)
-                            setAtributo("Carisma", carisma)
-                        }
-                        atributos = novosAtributos
-                        inteligencia--
-                        errorMessage = null
-                    } catch (e: Exception) {
-                        errorMessage = e.message
-                    }
-                }
-            }
-        )
-
-        AtributoField(
-            label = "Sabedoria",
-            value = sabedoria,
-            onIncrement = {
-                try {
-                    val novosAtributos = Atributos().apply {
-                        setAtributo("Força", forca)
-                        setAtributo("Destreza", destreza)
-                        setAtributo("Constituição", constituicao)
-                        setAtributo("Inteligência", inteligencia)
-                        setAtributo("Sabedoria", sabedoria + 1)
-                        setAtributo("Carisma", carisma)
-                    }
-                    atributos = novosAtributos
-                    sabedoria++
-                    errorMessage = null
-                } catch (e: Exception) {
-                    errorMessage = e.message
-                }
-            },
-            onDecrement = {
-                if (sabedoria > 8) {
-                    try {
-                        val novosAtributos = Atributos().apply {
-                            setAtributo("Força", forca)
-                            setAtributo("Destreza", destreza)
-                            setAtributo("Constituição", constituicao)
-                            setAtributo("Inteligência", inteligencia)
-                            setAtributo("Sabedoria", sabedoria - 1)
-                            setAtributo("Carisma", carisma)
-                        }
-                        atributos = novosAtributos
-                        sabedoria--
-                        errorMessage = null
-                    } catch (e: Exception) {
-                        errorMessage = e.message
-                    }
-                }
-            }
-        )
-
-        AtributoField(
-            label = "Carisma",
-            value = carisma,
-            onIncrement = {
-                try {
-                    val novosAtributos = Atributos().apply {
-                        setAtributo("Força", forca)
-                        setAtributo("Destreza", destreza)
-                        setAtributo("Constituição", constituicao)
-                        setAtributo("Inteligência", inteligencia)
-                        setAtributo("Sabedoria", sabedoria)
-                        setAtributo("Carisma", carisma + 1)
-                    }
-                    atributos = novosAtributos
-                    carisma++
-                    errorMessage = null
-                } catch (e: Exception) {
-                    errorMessage = e.message
-                }
-            },
-            onDecrement = {
-                if (carisma > 8) {
-                    try {
-                        val novosAtributos = Atributos().apply {
-                            setAtributo("Força", forca)
-                            setAtributo("Destreza", destreza)
-                            setAtributo("Constituição", constituicao)
-                            setAtributo("Inteligência", inteligencia)
-                            setAtributo("Sabedoria", sabedoria)
-                            setAtributo("Carisma", carisma - 1)
-                        }
-                        atributos = novosAtributos
-                        carisma--
-                        errorMessage = null
-                    } catch (e: Exception) {
-                        errorMessage = e.message
-                    }
-                }
-            }
-        )
+            )
+        }
 
         // Mensagem de erro
-        errorMessage?.let { error ->
+        errorMessage?.let {
             Text(
-                text = error,
+                text = it,
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.padding(vertical = 8.dp)
             )
         }
 
-        // Botão Salvar
         Button(
             onClick = {
-                if (nome.isNotEmpty() && atributos.validarAtributos()) {
-                    val personagem = Personagem().apply {
-                        this.nome = nome
-                    }
-                    onSavePersonagem(personagem, atributos)
-                } else {
-                    errorMessage = "Preencha todos os campos corretamente"
+                if (nome.isEmpty()) {
+                    errorMessage = "Digite um nome para o personagem"
+                    return@Button
                 }
+                if (classeSelecionada == null) {
+                    errorMessage = "Selecione uma classe"
+                    return@Button
+                }
+                if (racaSelecionada == null) {
+                    errorMessage = "Selecione uma raça"
+                    return@Button
+                }
+                if (!atributos.validarAtributos()) {
+                    errorMessage = "Atributos inválidos"
+                    return@Button
+                }
+
+                val personagem = Personagem(nome = nome)
+                onSavePersonagem(personagem, atributos)
+                errorMessage = null
             },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp)
+            modifier = Modifier.fillMaxWidth()
         ) {
             Text("Salvar Personagem")
         }
 
-        // Botão Listar Personagens
         OutlinedButton(
             onClick = onListPersonagens,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp)
+            modifier = Modifier.fillMaxWidth()
         ) {
             Text("Listar Personagens")
-        }
-    }
-}
-
-@Composable
-private fun AtributoField(
-    label: String,
-    value: Int,
-    onIncrement: () -> Unit,
-    onDecrement: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Text(
-            text = label,
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyLarge
-        )
-
-        Button(
-            onClick = onDecrement,
-            modifier = Modifier.width(48.dp)
-        ) {
-            Text("-")
-        }
-
-        Text(
-            text = value.toString(),
-            modifier = Modifier.width(48.dp),
-            textAlign = TextAlign.Center,
-            style = MaterialTheme.typography.bodyLarge
-        )
-
-        Button(
-            onClick = onIncrement,
-            modifier = Modifier.width(48.dp)
-        ) {
-            Text("+")
         }
     }
 }
