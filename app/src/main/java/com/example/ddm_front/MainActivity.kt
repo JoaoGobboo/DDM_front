@@ -19,7 +19,6 @@ import com.example.ddm_front.Logica.Atributos
 import com.example.ddm_front.Logica.Personagem
 import com.example.ddm_front.UI.ListaPersonagensActivity
 import com.example.ddm_front.UI.PersonagemForm
-import com.example.ddm_front.ui.theme.DDMFrontTheme
 import up.ddm.data.AtributosDB
 
 class MainActivity : ComponentActivity() {
@@ -36,7 +35,6 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun MainScreen() {
-        DDMFrontTheme {
             Surface(
                 modifier = Modifier.fillMaxSize(),
                 color = MaterialTheme.colorScheme.background
@@ -56,7 +54,6 @@ class MainActivity : ComponentActivity() {
                     )
                 }
             }
-        }
     }
 
     private fun startListaPersonagensActivity() {
